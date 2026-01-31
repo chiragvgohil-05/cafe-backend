@@ -1,15 +1,10 @@
 import { Schema, model } from 'mongoose';
 
 const tableSchema = new Schema({
-    cafeId: {
-        type: Schema.Types.ObjectId,
-        ref: 'cafes',
-        required: true,
-    },
-
     tableNumber: {
         type: String,
         required: true,
+        unique: true,
     },
 
     capacity: {
@@ -29,7 +24,6 @@ const tableSchema = new Schema({
 
 }, { timestamps: true });
 
-tableSchema.index({ cafeId: 1, tableNumber: 1 }, { unique: true });
 const tableModel = model('tables', tableSchema);
 
 export default tableModel;

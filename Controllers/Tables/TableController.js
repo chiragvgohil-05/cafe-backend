@@ -1,12 +1,10 @@
 import TableModel from '../../Models/TableModel.js';
 import mongoose from 'mongoose';
-import cafeModel from '../../Models/CafeModel.js';
 
 /* ================= CREATE TABLE ================= */
 const create = async (req, res) => {
     try {
         const { tableNumber, capacity } = req.body;
-        const ownerId = req.user.id;
 
         if (!tableNumber || !capacity) {
             return res.status(400).json({
@@ -22,20 +20,10 @@ const create = async (req, res) => {
             });
         }
 
-        // 🔐 Find cafe of logged-in user
-        const cafe = await cafeModel.findOne({ isOwner: ownerId });
-        if (!cafe) {
-            return res.status(404).json({
-                success: false,
-                message: 'Cafe not found'
-            });
-        }
-
         const normalizedTableNumber = tableNumber.trim().toUpperCase();
 
         // ❌ Duplicate table check
         const existingTable = await TableModel.findOne({
-            cafeId: cafe._id,
             tableNumber: normalizedTableNumber,
             isActive: true
         });
@@ -48,7 +36,6 @@ const create = async (req, res) => {
         }
 
         const table = await TableModel.create({
-            cafeId: cafe._id,
             tableNumber: normalizedTableNumber,
             capacity,
             status: 'available'
@@ -71,8 +58,6 @@ const create = async (req, res) => {
 
 const listTables = async (req, res) => {
     try {
-        const ownerId = req.user.id;
-
         let {
             page = 1,
             limit = 10,
@@ -81,20 +66,10 @@ const listTables = async (req, res) => {
             search = ''
         } = req.query;
 
-        // 🔐 Get cafe
-        const cafe = await cafeModel.findOne({ isOwner: ownerId });
-        if (!cafe) {
-            return res.status(404).json({
-                success: false,
-                message: 'Cafe not found'
-            });
-        }
-
         page = Number(page);
         limit = Number(limit);
 
         const filter = {
-            cafeId: cafe._id,
             isActive: true
         };
 
@@ -112,9 +87,9 @@ const listTables = async (req, res) => {
         const skip = (page - 1) * limit;
 
         const tables = await TableModel.find(filter)
-        .sort(sortOptions)
-        .skip(skip)
-        .limit(limit);
+            .sort(sortOptions)
+            .skip(skip)
+            .limit(limit);
 
         const totalRecords = await TableModel.countDocuments(filter);
 
@@ -172,7 +147,6 @@ const update = async (req, res) => {
 
             const duplicate = await TableModel.findOne({
                 _id: { $ne: tableId },
-                cafeId: table.cafeId,
                 tableNumber: normalizedTableNumber,
                 isActive: true
             });

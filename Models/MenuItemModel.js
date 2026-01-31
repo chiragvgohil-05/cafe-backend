@@ -2,11 +2,6 @@ import { Schema, model } from 'mongoose';
 
 const menuItemSchema = new Schema({
 
-    cafeId: {
-        type: Schema.Types.ObjectId,
-        ref: 'cafes',
-        required: true,
-    },
     categoryId: {
         type: Schema.Types.ObjectId,
         ref: 'MenuCategory',

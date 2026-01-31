@@ -1,12 +1,6 @@
 import { Schema, model } from 'mongoose';
 
 const orderSchema = new Schema({
-    cafeId: {
-        type: Schema.Types.ObjectId,
-        ref: 'cafes',
-        required: true,
-    },
-
     tableId: {
         type: Schema.Types.ObjectId,
         ref: 'tables',

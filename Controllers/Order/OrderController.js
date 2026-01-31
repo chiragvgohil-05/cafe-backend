@@ -1,28 +1,16 @@
 import Order from '../../Models/OrderModel.js';
 import MenuItem from '../../Models/MenuItemModel.js';
 import Table from '../../Models/TableModel.js';
-import cafeModel from '../../Models/CafeModel.js';
 import orderModel from '../../Models/OrderModel.js';
 
 const createOrder = async (req, res) => {
     try {
         const { tableId, items } = req.body;
-        const ownerId = req.user.id;
 
         if (!tableId || !items || items.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: 'tableId and items are required'
-            });
-        }
-
-        // 🔐 Find cafe from logged-in owner
-        const cafe = await cafeModel.findOne({ isOwner: ownerId });
-
-        if (!cafe) {
-            return res.status(404).json({
-                success: false,
-                message: 'Cafe not found for this user'
             });
         }
 
@@ -51,7 +39,6 @@ const createOrder = async (req, res) => {
 
         // 🧾 Create order
         const order = await Order.create({
-            cafeId: cafe._id,
             tableId,
             items: orderItems,
             totalAmount
@@ -76,24 +63,12 @@ const createOrder = async (req, res) => {
 };
 
 
-// ✅ GET ALL ORDERS (without cafeId param)
+// ✅ GET ALL ORDERS
 const getOrder = async (req, res) => {
     try {
-        const ownerId = req.user.id;
-
-        // 🔐 Find cafe of logged-in user
-        const cafe = await cafeModel.findOne({ isOwner: ownerId });
-
-        if (!cafe) {
-            return res.status(404).json({
-                success: false,
-                message: 'Cafe not found'
-            });
-        }
-
-        const orders = await Order.find({ cafeId: cafe._id })
-        .populate('tableId', 'tableNumber')
-        .populate('items.itemId', 'name price');
+        const orders = await Order.find({})
+            .populate('tableId', 'tableNumber')
+            .populate('items.itemId', 'name price');
 
         res.status(200).json({
             success: true,
@@ -111,27 +86,18 @@ const getOrder = async (req, res) => {
 // get order by status
 const getOrderStatus = async (req, res) => {
     try {
-        const ownerId = req.user.id;
         const { status } = req.query;
 
-        const cafe = await cafeModel.findOne({isOwner: ownerId});
-        if (!cafe) {
-            return res.status(404).json({
-                success: false,
-                message: 'Cafe not found'
-            })
-        }
+        const filter = {};
 
-        const filter = { cafeId: cafe._id };
-
-        if(status) {
+        if (status) {
             filter.orderStatus = status;
-            console.log(filter.orderStatus,'filter.orderStatus');
+            console.log(filter.orderStatus, 'filter.orderStatus');
         }
 
         const order = await orderModel.find(filter)
-        .populate('tableId', 'tableNumber')
-        .populate('items.itemId', 'name price');
+            .populate('tableId', 'tableNumber')
+            .populate('items.itemId', 'name price');
         res.status(200).json({
             success: true,
             message: 'Order status successfully',

@@ -1,9 +1,6 @@
-import cafeModel from '../../Models/CafeModel.js';
 import menuCategoryModel from '../../Models/MenuCategoryModel.js';
 import uploadToCloudinary from '../../utils/uploadToCloudinary.js';
 import menuItemModel from '../../Models/MenuItemModel.js';
-import mongoose from 'mongoose';
-import { DEFAULT_CAFE_ID } from '../../Config/cafe.config.js';
 
 const create = async (req, res) => {
     try {
@@ -17,7 +14,6 @@ const create = async (req, res) => {
         }
 
         const existingCategory = await menuCategoryModel.findOne({
-            cafeId: DEFAULT_CAFE_ID,
             name: name.trim(),
         });
 
@@ -29,7 +25,6 @@ const create = async (req, res) => {
         }
 
         const category = await menuCategoryModel.create({
-            cafeId: DEFAULT_CAFE_ID,
             name: name.trim(),
         });
 
@@ -50,9 +45,14 @@ const create = async (req, res) => {
 
 const list = async (req, res) => {
     try {
-        const categories = await menuCategoryModel.find({
-            cafeId: DEFAULT_CAFE_ID
-        }).sort({ createdAt: -1 });
+        const { isActive } = req.query;
+        const filter = {};
+
+        if (isActive !== undefined) {
+            filter.isActive = isActive === 'true';
+        }
+
+        const categories = await menuCategoryModel.find(filter).sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -80,18 +80,6 @@ const createMenu = async (req, res) => {
             });
         }
 
-        // 🔐 Logged-in user
-        const ownerId = req.user.id;
-
-        // ☕ Find cafe of this owner
-        const cafe = await cafeModel.findOne({ isOwner: ownerId });
-        if (!cafe) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cafe not found'
-            });
-        }
-
         // 🖼 Image upload
         let imageUrl = null;
         if (req.file) {
@@ -101,7 +89,6 @@ const createMenu = async (req, res) => {
 
         // 🍽 Create menu item
         const menuItem = await menuItemModel.create({
-            cafeId: cafe._id,     // 🔥 auto from backend
             categoryId,
             name,
             description,
@@ -128,21 +115,10 @@ const createMenu = async (req, res) => {
 
 const menuList = async (req, res) => {
     try {
-        const ownerId = req.user.id;
-        const cafe = await cafeModel.findOne({ isOwner: ownerId });
-
-        if (!cafe) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cafe not found for this user',
-            });
-        }
-
         // 📋 Get menu with categories + items
         const menu = await menuCategoryModel.aggregate([
             {
                 $match: {
-                    cafeId: new mongoose.Types.ObjectId(cafe._id),
                     isActive: true
                 }
             },
@@ -189,11 +165,148 @@ const menuList = async (req, res) => {
     }
 };
 
+const updateMenu = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { categoryId, name, description, price, isAvailable } = req.body;
 
+        const updateData = {
+            categoryId,
+            name,
+            description,
+            price,
+            isAvailable
+        };
+
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.buffer, 'menuItems');
+            updateData.image = result.secure_url;
+        }
+
+        const menuItem = await menuItemModel.findByIdAndUpdate(id, updateData, { new: true });
+
+        if (!menuItem) {
+            return res.status(404).json({
+                success: false,
+                message: 'Menu item not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Menu item updated successfully',
+            data: menuItem,
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error',
+        });
+    }
+};
+
+const deleteMenu = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const menuItem = await menuItemModel.findByIdAndDelete(id);
+
+        if (!menuItem) {
+            return res.status(404).json({
+                success: false,
+                message: 'Menu item not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Menu item deleted successfully'
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error',
+        });
+    }
+};
+
+const updateCategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, isActive } = req.body;
+
+        const category = await menuCategoryModel.findByIdAndUpdate(
+            id,
+            { name, isActive },
+            { new: true }
+        );
+
+        if (!category) {
+            return res.status(404).json({
+                success: false,
+                message: 'Category not found',
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Category updated successfully',
+            data: category,
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error',
+        });
+    }
+};
+
+const deleteCategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Check if there are menu items in this category
+        const itemsCount = await menuItemModel.countDocuments({ categoryId: id });
+        if (itemsCount > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot delete category with associated menu items. Delete the items first.',
+            });
+        }
+
+        const category = await menuCategoryModel.findByIdAndDelete(id);
+
+        if (!category) {
+            return res.status(404).json({
+                success: false,
+                message: 'Category not found',
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Category deleted successfully',
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error',
+        });
+    }
+};
 
 export default {
     create,
     list,
     createMenu,
-    menuList
+    menuList,
+    updateMenu,
+    deleteMenu,
+    updateCategory,
+    deleteCategory
 };
