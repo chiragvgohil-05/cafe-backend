@@ -6,6 +6,7 @@ import CategoryRoutes from '../Controllers/Category/CategoryRoutes.js';
 import TableRoutes from '../Controllers/Tables/TableRoutes.js';
 import OrderRoutes from '../Controllers/Order/OrderRoutes.js';
 import PaymentRoutes from '../Controllers/Payment/PaymentRoutes.js';
+import ReservationRoutes from '../Controllers/Reservations/ReservationRoutes.js';
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use('/auth', AuthRoutes);
 app.use('/cafe', AuthMiddleware, CafeRoutes);
 app.use('/category', AuthMiddleware, CategoryRoutes);
 app.use('/cafe-table', AuthMiddleware, TableRoutes);
+app.use('/reservations', AuthMiddleware, ReservationRoutes);
 app.use('/order', AuthMiddleware, OrderRoutes);
 app.use('/payment', AuthMiddleware, PaymentRoutes);
 
