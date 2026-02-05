@@ -1,5 +1,13 @@
 import Reservation from '../../Models/ReservationModel.js';
 import Table from '../../Models/TableModel.js';
+import razorpay from '../../utils/razorpay.js';
+import crypto from 'crypto';
+
+const SECURITY_DEPOSIT_VALUE = Number(process.env.RESERVATION_SECURITY_AMOUNT);
+const SECURITY_DEPOSIT = Number.isFinite(SECURITY_DEPOSIT_VALUE) && SECURITY_DEPOSIT_VALUE > 0
+    ? SECURITY_DEPOSIT_VALUE
+    : 100;
+const SECURITY_CURRENCY = 'INR';
 
 // Get available tables for a specific date, time, and guest count
 export const getAvailableTables = async (req, res) => {
@@ -92,7 +100,9 @@ export const createReservation = async (req, res) => {
             endTime,
             guests,
             guestDetails,
-            status: 'confirmed'
+            securityAmount: SECURITY_DEPOSIT,
+            paymentStatus: 'unpaid',
+            status: 'pending'
         });
 
         await newReservation.save();
@@ -196,5 +206,105 @@ export const deleteReservation = async (req, res) => {
     } catch (error) {
         console.error("Error deleting reservation:", error);
         res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// Create Razorpay order for reservation security deposit
+export const createReservationPaymentOrder = async (req, res) => {
+    try {
+        const { reservationId } = req.body;
+
+        if (!reservationId) {
+            return res.status(400).json({ message: "reservationId is required" });
+        }
+
+        const reservation = await Reservation.findById(reservationId);
+        if (!reservation) {
+            return res.status(404).json({ message: "Reservation not found" });
+        }
+
+        if (reservation.paymentStatus === 'paid') {
+            return res.status(200).json({
+                success: true,
+                message: "Payment already completed",
+                data: {
+                    reservationId: reservation._id,
+                    paymentStatus: reservation.paymentStatus
+                }
+            });
+        }
+
+        const amount = reservation.securityAmount || SECURITY_DEPOSIT;
+
+        const razorpayOrder = await razorpay.orders.create({
+            amount: amount * 100,
+            currency: SECURITY_CURRENCY,
+            receipt: `reservation_${reservation._id}`
+        });
+
+        reservation.razorpayOrderId = razorpayOrder.id;
+        reservation.securityAmount = amount;
+        await reservation.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Security deposit order created",
+            data: {
+                reservationId: reservation._id,
+                razorpayOrderId: razorpayOrder.id,
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency,
+                keyId: process.env.RAZORPAY_KEY_ID
+            }
+        });
+    } catch (error) {
+        console.error("Error creating reservation payment order:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// Verify Razorpay payment for reservation security deposit
+export const verifyReservationPayment = async (req, res) => {
+    try {
+        const { reservationId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+        if (!reservationId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+            return res.status(400).json({ message: "Missing required payment fields" });
+        }
+
+        const reservation = await Reservation.findById(reservationId);
+        if (!reservation) {
+            return res.status(404).json({ message: "Reservation not found" });
+        }
+
+        if (reservation.razorpayOrderId && reservation.razorpayOrderId !== razorpayOrderId) {
+            return res.status(400).json({ message: "Order mismatch" });
+        }
+
+        const body = razorpayOrderId + "|" + razorpayPaymentId;
+        const expectedSignature = crypto
+            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .update(body.toString())
+            .digest("hex");
+
+        if (expectedSignature !== razorpaySignature) {
+            return res.status(400).json({ message: "Invalid signature" });
+        }
+
+        reservation.paymentStatus = 'paid';
+        reservation.status = 'confirmed';
+        reservation.razorpayPaymentId = razorpayPaymentId;
+        reservation.razorpaySignature = razorpaySignature;
+        reservation.paidAt = new Date();
+        await reservation.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Payment verified successfully",
+            reservation
+        });
+    } catch (error) {
+        console.error("Error verifying reservation payment:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 };

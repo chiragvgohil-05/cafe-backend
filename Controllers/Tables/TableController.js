@@ -1,6 +1,8 @@
 import TableModel from '../../Models/TableModel.js';
 import mongoose from 'mongoose';
 
+const ALLOWED_TABLE_TYPES = ['Window', 'Center', 'Booth', 'Standard'];
+
 /* ================= CREATE TABLE ================= */
 const create = async (req, res) => {
     try {
@@ -13,10 +15,24 @@ const create = async (req, res) => {
             });
         }
 
+        if (typeof tableNumber !== 'string' || !tableNumber.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'tableNumber must be a non-empty string'
+            });
+        }
+
         if (Number(capacity) <= 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Capacity must be greater than 0'
+            });
+        }
+
+        if (type && !ALLOWED_TABLE_TYPES.includes(type)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid table type'
             });
         }
 
@@ -163,7 +179,15 @@ const update = async (req, res) => {
         }
 
         if (capacity) table.capacity = capacity;
-        if (type) table.type = type;
+        if (type) {
+            if (!ALLOWED_TABLE_TYPES.includes(type)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid table type'
+                });
+            }
+            table.type = type;
+        }
 
         if (status) {
             if (!['available', 'occupied', 'reserved'].includes(status)) {

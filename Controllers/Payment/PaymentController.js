@@ -51,10 +51,20 @@ const paymentVerify = async (req, res) => {
           if (expectedSignature !== razorpaySignature) {
               return res.status(400).json({ success: false, message: "Invalid signature" });
           }
-          await orderModel.findByIdAndUpdate(orderId, {
-              paymentStatus: "PAID",
-              razorpayPaymentId: razorpayPaymentId
-          });
+          const updatedOrder = await orderModel.findByIdAndUpdate(
+              orderId,
+              {
+                  paymentStatus: "paid",
+                  razorpayPaymentId: razorpayPaymentId,
+                  razorpaySignature: razorpaySignature,
+                  paidAt: new Date()
+              },
+              { new: true, runValidators: true }
+          );
+
+          if (!updatedOrder) {
+              return res.status(404).json({ success: false, message: "Order not found" });
+          }
 
           res.json({
               success: true,

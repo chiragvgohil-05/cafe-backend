@@ -2,6 +2,7 @@ import Order from '../../Models/OrderModel.js';
 import MenuItem from '../../Models/MenuItemModel.js';
 import Table from '../../Models/TableModel.js';
 import orderModel from '../../Models/OrderModel.js';
+import mongoose from 'mongoose';
 
 const createOrder = async (req, res) => {
     try {
@@ -14,25 +15,54 @@ const createOrder = async (req, res) => {
             });
         }
 
+        if (!mongoose.Types.ObjectId.isValid(tableId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid tableId'
+            });
+        }
+
+        const table = await Table.findById(tableId);
+        if (!table || !table.isActive) {
+            return res.status(404).json({
+                success: false,
+                message: 'Table not found'
+            });
+        }
+
         let totalAmount = 0;
         const orderItems = [];
 
         for (const item of items) {
-            const menuItem = await MenuItem.findById(item.itemId);
-
-            if (!menuItem) {
-                return res.status(404).json({
+            if (!item?.itemId || !mongoose.Types.ObjectId.isValid(item.itemId)) {
+                return res.status(400).json({
                     success: false,
-                    message: 'Menu item not found'
+                    message: 'Invalid menu item id'
                 });
             }
 
-            const itemTotal = menuItem.price * item.quantity;
+            if (!item?.quantity || Number(item.quantity) <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Item quantity must be greater than 0'
+                });
+            }
+
+            const menuItem = await MenuItem.findById(item.itemId);
+
+            if (!menuItem || !menuItem.isAvailable) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Menu item not available'
+                });
+            }
+
+            const itemTotal = menuItem.price * Number(item.quantity);
             totalAmount += itemTotal;
 
             orderItems.push({
                 itemId: menuItem._id,
-                quantity: item.quantity,
+                quantity: Number(item.quantity),
                 price: menuItem.price
             });
         }

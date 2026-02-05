@@ -1,5 +1,6 @@
 import express from 'express';
 import AuthMiddleware from '../Middlewares/AuthMiddleware.js';
+import requireRole from '../Middlewares/RoleMiddleware.js';
 import AuthRoutes from '../Controllers/Auth/AuthRoutes.js';
 import CafeRoutes from '../Controllers/Cafe/CafeRoutes.js';
 import CategoryRoutes from '../Controllers/Category/CategoryRoutes.js';
@@ -12,10 +13,10 @@ import ReservationRoutes from '../Controllers/Reservation/ReservationRoutes.js';
 const app = express();
 
 app.use('/auth', AuthRoutes);
-app.use('/cafe', AuthMiddleware, CafeRoutes);
-app.use('/category', AuthMiddleware, CategoryRoutes);
-app.use('/cafe-table', AuthMiddleware, TableRoutes);
-app.use('/order', AuthMiddleware, OrderRoutes);
+app.use('/cafe', AuthMiddleware, requireRole('admin'), CafeRoutes);
+app.use('/category', AuthMiddleware, requireRole('admin'), CategoryRoutes);
+app.use('/cafe-table', AuthMiddleware, requireRole('admin'), TableRoutes);
+app.use('/order', AuthMiddleware, requireRole('admin'), OrderRoutes);
 app.use('/payment', AuthMiddleware, PaymentRoutes);
 app.use('/reservations', ReservationRoutes); // Public access for guest reservations
 

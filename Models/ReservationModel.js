@@ -33,10 +33,31 @@ const reservationSchema = new Schema({
         type: Number,
         required: true
     },
+    securityAmount: {
+        type: Number,
+        default: 100
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['unpaid', 'paid', 'failed'],
+        default: 'unpaid'
+    },
+    razorpayOrderId: {
+        type: String
+    },
+    razorpayPaymentId: {
+        type: String
+    },
+    razorpaySignature: {
+        type: String
+    },
+    paidAt: {
+        type: Date
+    },
     status: {
         type: String,
         enum: ['pending', 'confirmed', 'cancelled', 'completed'],
-        default: 'confirmed'
+        default: 'pending'
     }
 }, { timestamps: true });
 
