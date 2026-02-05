@@ -7,6 +7,8 @@ import TableRoutes from '../Controllers/Tables/TableRoutes.js';
 import OrderRoutes from '../Controllers/Order/OrderRoutes.js';
 import PaymentRoutes from '../Controllers/Payment/PaymentRoutes.js';
 
+import ReservationRoutes from '../Controllers/Reservation/ReservationRoutes.js';
+
 const app = express();
 
 app.use('/auth', AuthRoutes);
@@ -15,5 +17,6 @@ app.use('/category', AuthMiddleware, CategoryRoutes);
 app.use('/cafe-table', AuthMiddleware, TableRoutes);
 app.use('/order', AuthMiddleware, OrderRoutes);
 app.use('/payment', AuthMiddleware, PaymentRoutes);
+app.use('/reservations', ReservationRoutes); // Public access for guest reservations
 
 export default app;

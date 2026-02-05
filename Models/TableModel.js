@@ -16,6 +16,11 @@ const tableSchema = new Schema({
         enum: ['available', 'occupied', 'reserved'],
         default: 'available',
     },
+    type: {
+        type: String,
+        enum: ['Window', 'Center', 'Booth', 'Standard'],
+        default: 'Standard'
+    },
 
     isActive: {
         type: Boolean,

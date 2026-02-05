@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 /* ================= CREATE TABLE ================= */
 const create = async (req, res) => {
     try {
-        const { tableNumber, capacity } = req.body;
+        const { tableNumber, capacity, type } = req.body;
 
         if (!tableNumber || !capacity) {
             return res.status(400).json({
@@ -38,7 +38,8 @@ const create = async (req, res) => {
         const table = await TableModel.create({
             tableNumber: normalizedTableNumber,
             capacity,
-            status: 'available'
+            status: 'available',
+            type: type || 'Standard'
         });
 
         return res.status(201).json({
@@ -118,7 +119,7 @@ const listTables = async (req, res) => {
 const update = async (req, res) => {
     try {
         const { tableId } = req.params;
-        const { tableNumber, capacity, status } = req.body;
+        const { tableNumber, capacity, status, type } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(tableId)) {
             return res.status(400).json({
@@ -162,6 +163,7 @@ const update = async (req, res) => {
         }
 
         if (capacity) table.capacity = capacity;
+        if (type) table.type = type;
 
         if (status) {
             if (!['available', 'occupied', 'reserved'].includes(status)) {
