@@ -167,19 +167,43 @@ export const updateReservationStatus = async (req, res) => {
             return res.status(400).json({ message: "Status is required" });
         }
 
-        const reservation = await Reservation.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true }
-        );
+        const reservation = await Reservation.findById(id);
 
         if (!reservation) {
             return res.status(404).json({ message: "Reservation not found" });
         }
 
+        const user = req.user;
+
+        // Authorization check: Only admin can set any status. 
+        // Regular users and guests can only set status to 'cancelled'.
+        if (user) {
+            if (user.role !== 'admin') {
+                if (status !== 'cancelled') {
+                    return res.status(403).json({ message: "Only admins can change status to " + status });
+                }
+
+                // Check if it's the user's own reservation
+                const isOwner = (reservation.user && reservation.user.toString() === user.id.toString()) ||
+                    (reservation.guestDetails.email === user.email);
+
+                if (!isOwner) {
+                    return res.status(403).json({ message: "You can only cancel your own reservations" });
+                }
+            }
+        } else {
+            // Guest access: Only allow cancellation
+            if (status !== 'cancelled') {
+                return res.status(401).json({ message: "Login required to update status to " + status });
+            }
+        }
+
+        reservation.status = status;
+        const updatedReservation = await reservation.save();
+
         res.status(200).json({
             message: "Reservation status updated successfully",
-            reservation
+            reservation: updatedReservation
         });
 
     } catch (error) {
