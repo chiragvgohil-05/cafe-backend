@@ -14,7 +14,7 @@ const app = express();
 
 app.use('/auth', AuthRoutes);
 app.use('/cafe', AuthMiddleware, requireRole('admin'), CafeRoutes);
-app.use('/category', AuthMiddleware, requireRole('admin'), CategoryRoutes);
+app.use('/category', CategoryRoutes);
 app.use('/cafe-table', AuthMiddleware, requireRole('admin'), TableRoutes);
 app.use('/order', AuthMiddleware, requireRole('admin'), OrderRoutes);
 app.use('/payment', AuthMiddleware, PaymentRoutes);
