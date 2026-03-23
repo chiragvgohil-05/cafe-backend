@@ -7,6 +7,18 @@ const orderSchema = new Schema({
         required: true,
     },
 
+    reservationId: {
+        type: Schema.Types.ObjectId,
+        ref: 'reservations',
+        required: false,
+    },
+
+    userId: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+        required: false,
+    },
+
     items: [
         {
             itemId: {

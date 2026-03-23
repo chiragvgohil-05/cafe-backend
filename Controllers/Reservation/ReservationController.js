@@ -95,6 +95,7 @@ export const createReservation = async (req, res) => {
 
         const newReservation = new Reservation({
             table: tableId,
+            user: req.user ? req.user.id : null,
             date,
             startTime,
             endTime,
@@ -139,6 +140,32 @@ export const getReservations = async (req, res) => {
 
     } catch (error) {
         console.error("Error fetching reservations:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// Get the most recent active reservation for the logged-in user
+export const getActiveReservation = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Login required" });
+        }
+
+        const reservation = await Reservation.findOne({
+            user: req.user.id,
+            status: { $in: ['confirmed', 'pending'] }
+        })
+        .populate('table', 'tableNumber capacity type')
+        .sort({ createdAt: -1 });
+
+        if (!reservation) {
+            return res.status(200).json({ success: false, message: "No active reservation found", data: null });
+        }
+
+        res.status(200).json({ success: true, data: reservation });
+
+    } catch (error) {
+        console.error("Error fetching active reservation:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
