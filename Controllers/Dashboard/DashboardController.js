@@ -34,7 +34,7 @@ const getDashboardStats = async (req, res) => {
 
     const crValue = currentMonthRevenue.length > 0 ? currentMonthRevenue[0].total : 0;
     const prValue = prevMonthRevenue.length > 0 ? prevMonthRevenue[0].total : 0;
-    
+
     let growthRate = 0;
     if (prValue > 0) {
       growthRate = ((crValue - prValue) / prValue) * 100;
@@ -51,11 +51,12 @@ const getDashboardStats = async (req, res) => {
     // 6. Popular Items (Top 5 based on total quantity sold)
     const popularItems = await orderModel.aggregate([
       { $unwind: "$items" },
-      { $group: { 
-          _id: "$items.itemId", 
+      {
+        $group: {
+          _id: "$items.itemId",
           totalQuantity: { $sum: "$items.quantity" },
           totalRevenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
-        } 
+        }
       },
       { $sort: { totalQuantity: -1 } },
       { $limit: 5 },
