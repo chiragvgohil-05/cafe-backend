@@ -165,6 +165,50 @@ const menuList = async (req, res) => {
     }
 };
 
+const menuItemsAdmin = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const { search, categoryId } = req.query;
+
+        const filter = {};
+        if (search) {
+            filter.name = { $regex: search, $options: 'i' };
+        }
+        if (categoryId && categoryId !== 'All') {
+            filter.categoryId = categoryId;
+        }
+
+        const totalItems = await menuItemModel.countDocuments(filter);
+        const items = await menuItemModel.find(filter)
+            .populate('categoryId', 'name')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                items,
+                pagination: {
+                    totalItems,
+                    totalPages: Math.ceil(totalItems / limit),
+                    currentPage: page,
+                    pageSize: limit
+                }
+            },
+            message: 'Menu items fetched successfully',
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal Server Error',
+        });
+    }
+};
+
 const updateMenu = async (req, res) => {
     try {
         const { id } = req.params;
@@ -308,5 +352,6 @@ export default {
     updateMenu,
     deleteMenu,
     updateCategory,
-    deleteCategory
+    deleteCategory,
+    menuItemsAdmin
 };

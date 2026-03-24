@@ -20,6 +20,7 @@ router.delete('/:id', categoryController.deleteCategory);
 // item menu routes
 router.post('/menu', upload.single('image'), categoryController.createMenu);
 router.put('/menu/:id', upload.single('image'), categoryController.updateMenu);
+router.get('/menu-items-admin', categoryController.menuItemsAdmin);
 router.delete('/menu/:id', categoryController.deleteMenu);
 
 export default router;
