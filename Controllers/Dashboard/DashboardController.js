@@ -5,20 +5,37 @@ import reservationModel from "../../Models/ReservationModel.js";
 
 const getDashboardStats = async (req, res) => {
   try {
-    // 1. Total Revenue
-    const revenueResult = await orderModel.aggregate([
+    // 1. Total Revenue (Orders + Paid Reservation Deposits)
+    const orderRevenue = await orderModel.aggregate([
       { $match: { paymentStatus: 'paid' } },
       { $group: { _id: null, total: { $sum: "$totalAmount" } } }
     ]);
-    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+    const resRevenue = await reservationModel.aggregate([
+      { $match: { paymentStatus: 'paid' } },
+      { $group: { _id: null, total: { $sum: "$securityAmount" } } }
+    ]);
+    const totalRevenue = (orderRevenue[0]?.total || 0) + (resRevenue[0]?.total || 0);
 
     // 2. Total Orders
     const totalOrders = await orderModel.countDocuments();
 
-    // 3. Active Customers (Assuming customers who logged in or have orders)
+    // 3. Active Customers
     const activeCustomers = await userModel.countDocuments({ role: 'customer' });
 
-    // 4. Growth Rate (Let's calculate based on revenue last 30 days vs previous 30 days)
+    // 4. Reservations Stats
+    const totalReservations = await reservationModel.countDocuments();
+    const pendingReservations = await reservationModel.countDocuments({ status: 'pending' });
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayReservations = await reservationModel.countDocuments({ date: todayStr });
+
+    const upcomingReservations = await reservationModel.find({
+        date: { $gte: todayStr }
+    })
+      .populate('table', 'tableNumber')
+      .sort({ date: 1, startTime: 1 })
+      .limit(5);
+
+    // 5. Growth Rate
     const now = new Date();
     const last30Days = new Date(now.setDate(now.getDate() - 30));
     const previous30Days = new Date(new Date(last30Days).setDate(last30Days.getDate() - 30));
@@ -32,8 +49,8 @@ const getDashboardStats = async (req, res) => {
       { $group: { _id: null, total: { $sum: "$totalAmount" } } }
     ]);
 
-    const crValue = currentMonthRevenue.length > 0 ? currentMonthRevenue[0].total : 0;
-    const prValue = prevMonthRevenue.length > 0 ? prevMonthRevenue[0].total : 0;
+    const crValue = currentMonthRevenue[0]?.total || 0;
+    const prValue = prevMonthRevenue[0]?.total || 0;
 
     let growthRate = 0;
     if (prValue > 0) {
@@ -42,13 +59,13 @@ const getDashboardStats = async (req, res) => {
       growthRate = 100;
     }
 
-    // 5. Recent Orders (last 5)
+    // 6. Recent Orders
     const recentOrders = await orderModel.find()
       .populate('tableId')
       .sort({ createdAt: -1 })
       .limit(5);
 
-    // 6. Popular Items (Top 5 based on total quantity sold)
+    // 7. Popular Items
     const popularItems = await orderModel.aggregate([
       { $unwind: "$items" },
       {
@@ -71,9 +88,20 @@ const getDashboardStats = async (req, res) => {
           totalRevenue,
           totalOrders,
           activeCustomers,
+          totalReservations,
+          pendingReservations,
+          todayReservations,
           growthRate: growthRate.toFixed(1)
         },
         recentOrders,
+        upcomingReservations: upcomingReservations.map(r => ({
+          id: r._id,
+          name: r.guestDetails.name,
+          time: r.startTime,
+          date: r.date,
+          table: r.table?.tableNumber || 'N/A',
+          status: r.status
+        })),
         popularItems: popularItems.map(item => ({
           name: item.itemDetails.name,
           orders: item.totalQuantity,
